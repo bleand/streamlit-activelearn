@@ -1,3 +1,9 @@
 import streamlit as st
+from alearn.binary import nlp_binary
+st.set_page_config(layout="wide")
 
-st.session_state
+with st.expander('Session State'):
+    st.session_state
+
+if st.session_state['model_type'] == 'Binary':
+    nlp_binary()
