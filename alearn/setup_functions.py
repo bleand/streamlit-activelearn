@@ -4,7 +4,7 @@ import streamlit as st
 def add_label():
     if st.session_state['new_label'] not in st.session_state['labels']:
         st.session_state['labels'].append(st.session_state['new_label'])
-
+    st.session_state['new_label'] = ''
 
 def delete_label(label):
     st.session_state['labels'].remove(label)

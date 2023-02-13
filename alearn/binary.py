@@ -9,6 +9,7 @@ import numpy as np
 def add_seed():
     if st.session_state['new_seed'] not in st.session_state['seeds']:
         st.session_state['seeds'][st.session_state['new_seed']] = st.session_state['new_seed_label']
+    st.session_state['new_seed'] = ''
 
 
 def delete_seed(seed):
@@ -26,6 +27,8 @@ def create_seeds():
         st.text('Seed')
     with col2:
         st.text('Label')
+    with col3:
+        st.text('')
 
     for seed in st.session_state['seeds']:
         with col1:
@@ -97,6 +100,7 @@ def annotate_seeds():
             st.session_state['alearn_loop']['seed_annotation']['idxs'].extend(list(set(list(close))))
 
         my_bar.progress((7 / steps), text="Done")
+
 
         annotate(st.session_state['df'], st.session_state['alearn_loop']['seed_annotation']['idxs'])
 
