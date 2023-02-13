@@ -4,6 +4,7 @@ from .utils import check_column_types, check_alearn_loop, next_alearn_step
 from sklearn.feature_extraction.text import TfidfVectorizer
 import scipy
 import numpy as np
+import pandas as pd
 
 
 def add_seed():
@@ -109,15 +110,41 @@ def annotate_seeds():
         annotate(st.session_state['df'], st.session_state['alearn_loop']['seed_annotation']['idxs'])
 
 
-def annotate(df, ixs):
-    st.session_state['alearn_loop']['seed_annotation']['pos'] = 0
-    data_col = [col for col, status in st.session_state['col_status'].items() if status][0]
-    st.markdown(df.iloc[ixs[st.session_state['alearn_loop']['seed_annotation']['pos']]][data_col])
-    cols = st.columns(tuple(1 for _ in st.session_state['labels']))
-    for ix, col in enumerate(cols):
-        with col:
-            st.button(st.session_state['labels'][ix], key=f"apply_{st.session_state['labels'][ix]}", use_container_width=True)
+def assign_annotation(ix, label):
 
+    if 'annotations' not in st.session_state['annotator']:
+        st.session_state['annotator']['annotations'] = {}
+    if ix not in st.session_state['annotator']['annotations']:
+        st.session_state['annotator']['annotations'][ix] = None
+    st.session_state['annotator']['annotations'][ix] = label
+    st.session_state['annotator']['pos'] += 1
+
+
+def annotate(df, ixs):
+
+    if 'annotator' not in st.session_state:
+        st.session_state['annotator'] = {}
+
+    if 'pos' not in st.session_state['annotator']:
+        st.session_state['annotator']['pos'] = 0
+
+    if st.session_state['annotator']['pos'] >= len(ixs):
+        with st.expander('Annotations'):
+            st.dataframe(pd.DataFrame(st.session_state['annotator']['annotations'].items(), columns=['ix', 'label']))
+        st.button('Proceed to next step', on_click=next_alearn_step)
+    else:
+        my_bar = st.progress((st.session_state['annotator']['pos'] / len(ixs)))
+
+        data_col = [col for col, status in st.session_state['col_status'].items() if status][0]
+        st.markdown(df.iloc[ixs[st.session_state['annotator']['pos']]][data_col])
+
+        cols = st.columns(tuple(1 for _ in st.session_state['labels']))
+        for ix, col in enumerate(cols):
+            with col:
+                st.button(st.session_state['labels'][ix], key=f"apply_{st.session_state['labels'][ix]}",
+                          use_container_width=True, on_click=assign_annotation,
+                          args=(ixs[st.session_state['annotator']['pos']],
+                                st.session_state['labels'][ix],))
 
 
 def nlp_binary():
