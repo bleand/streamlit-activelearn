@@ -1,10 +1,28 @@
 import streamlit as st
 
-from .utils import check_column_types, check_alearn_loop, next_alearn_step
+from .utils import check_column_types, check_alearn_loop, next_alearn_step, evaluate_model
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
 import scipy
 import numpy as np
 import pandas as pd
+from modAL.models import ActiveLearner
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+
+
+def get_features(df, labels=False, vectorizer=None):
+    if vectorizer:
+        features = vectorizer.transform(df.review.values)
+    else:
+        vectorizer = TfidfVectorizer()
+        features = vectorizer.fit_transform(df.review.values)
+
+    if labels:
+        y = df['label'].values
+        return features, y, vectorizer
+    else:
+        return features, vectorizer
 
 
 def add_seed():
@@ -102,7 +120,6 @@ def annotate_seeds():
 
         my_bar.progress((7 / steps), text="Done")
 
-
         annotate(st.session_state['df'], st.session_state['alearn_loop']['seed_annotation']['idxs'])
 
     else:
@@ -120,6 +137,44 @@ def assign_annotation(ix, label):
     st.session_state['annotator']['pos'] += 1
 
 
+def split_annotations(test_size=0.2):
+
+    if len(st.session_state['annotator']['annotations']) > 0:
+        annotations_df = pd.DataFrame(
+                    st.session_state['annotator']['annotations'].items(), columns=['ix', 'label']
+                )
+        train_annotations, test_annotations = train_test_split(annotations_df, test_size=test_size)
+
+        train_data = st.session_state['df'].iloc[train_annotations.ix.values]
+        train_data['label'] = train_annotations.label.values
+
+        test_data = st.session_state['df'].iloc[test_annotations.ix.values]
+        test_data['label'] = test_annotations.label.values
+
+        st.session_state['df'] = st.session_state['df'].iloc[
+            ~st.session_state['df'].index.isin(annotations_df.ix.values)]
+
+        st.session_state['df'].reset_index(inplace=True, drop=True)
+
+        if 'data_train' not in st.session_state['alearn_loop']:
+            st.session_state['alearn_loop']['data_train'] = train_data
+        else:
+            st.session_state['alearn_loop']['data_train'] = pd.concat([st.session_state['alearn_loop']['data_train'],
+                                                                       train_data])
+
+        st.session_state['alearn_loop']['data_train'].reset_index(inplace=True, drop=True)
+
+        if 'data_test' not in st.session_state['alearn_loop']:
+            st.session_state['alearn_loop']['data_test'] = test_data
+        else:
+            st.session_state['alearn_loop']['data_test'] = pd.concat([st.session_state['alearn_loop']['data_test'],
+                                                                       test_data])
+
+        st.session_state['alearn_loop']['data_test'].reset_index(inplace=True, drop=True)
+
+        st.session_state['annotator']['annotations'] = {}
+
+
 def annotate(df, ixs):
 
     if 'annotator' not in st.session_state:
@@ -129,10 +184,17 @@ def annotate(df, ixs):
         st.session_state['annotator']['pos'] = 0
 
     if st.session_state['annotator']['pos'] >= len(ixs):
-        with st.expander('Annotations'):
-            st.dataframe(pd.DataFrame(st.session_state['annotator']['annotations'].items(), columns=['ix', 'label']))
+        #with st.expander('Annotations'):
+        #    st.session_state['annotator']['annotations_df'] = pd.DataFrame(
+        #        st.session_state['annotator']['annotations'].items(), columns=['ix', 'label']
+        #    )
+        #    st.dataframe(st.session_state['annotator']['annotations_df'])
+        split_annotations()
         st.button('Proceed to next step', on_click=next_alearn_step)
+
+
     else:
+
         my_bar = st.progress((st.session_state['annotator']['pos'] / len(ixs)))
 
         data_col = [col for col, status in st.session_state['col_status'].items() if status][0]
@@ -147,9 +209,120 @@ def annotate(df, ixs):
                                 st.session_state['labels'][ix],))
 
 
+def classifier_uncertainty(classifier, X):
+    # calculate uncertainty for each point provided
+    classwise_uncertainty = classifier.estimator.predict_proba(X)
+
+    # Ignore None labels to confirm and focus on actual labels
+    prediction = classifier.predict(X)
+    prediction = np.array([1 if p != 'None' else 0 for p in list(prediction)])
+
+    # for each point, select the maximum uncertainty
+    uncertainty = 1 - np.max(classwise_uncertainty, axis=1)
+
+    return uncertainty * prediction  # A, uncertainty * predictionB
+
+
+def uncertainty_sampling(classifier, X, n_instances = 10,  **uncertainty_measure_kwargs):
+    from modAL.utils.selection import shuffled_argmax
+    uncertainty  = classifier_uncertainty(classifier, X)
+    return shuffled_argmax(uncertainty, n_instances=n_instances)
+
+
+def create_initial_learner():
+
+    # pool_features, st.session_state['vectorizer'] = get_features(st.session_state['df'],
+    #                                                             labels=False,
+    #                                                             vectorizer=st.session_state['vectorizer'])
+
+    my_bar = st.progress((0 / 3), text="Creating train features")
+
+    train_features, labels, st.session_state['vectorizer'] = get_features(
+        st.session_state['alearn_loop']['data_train'],
+        labels=True,
+        vectorizer=st.session_state['vectorizer'])
+
+    my_bar.progress((1 / 3), text="Creating test features")
+
+    #eval_features, eval_labels, st.session_state['vectorizer'] = get_features(
+    #    st.session_state['alearn_loop']['data_test'],
+    #    labels=True,
+    #    vectorizer=st.session_state['vectorizer'])
+
+    my_bar.progress((2 / 3), text="Creating learner")
+
+    st.session_state['alearn_loop']['learner'] = ActiveLearner(
+        estimator=RandomForestClassifier(),
+        query_strategy=uncertainty_sampling,
+        X_training=train_features, y_training=labels
+    )
+
+    my_bar.progress((3 / 3), text="Done")
+
+    next_alearn_step()
+
+
+def display_metric_line(data, current_data=None):
+    col1, col2, col3, col4 = st.columns(4)
+    if current_data:
+        with col1:
+            st.metric("Precision", data['precision'], round(data['precision'] - current_data['precision'], 2))
+        with col2:
+            st.metric("Recall", data['recall'], round(data['recall'] - current_data['recall'], 2))
+        with col3:
+            st.metric("F1", data['f1-score'], round(data['f1-score'] - current_data['f1-score'], 2))
+        with col4:
+            st.metric("Support", data['support'], round(data['support'] - current_data['support'], 2))
+    else:
+        with col1:
+            st.metric("Precision", data['precision'])
+        with col2:
+            st.metric("Recall", data['recall'])
+        with col3:
+            st.metric("F1", data['f1-score'])
+        with col4:
+            st.metric("Support", data['support'])
+
+
+def display_learner_metrics():
+
+    eval_features, eval_labels, st.session_state['vectorizer'] = get_features(
+        st.session_state['alearn_loop']['data_test'],
+        labels=True,
+        vectorizer=st.session_state['vectorizer'])
+
+    metrics = evaluate_model(st.session_state['alearn_loop']['learner'],
+                             eval_features,
+                             eval_labels)
+
+    print(metrics)
+
+    st.caption("<hr>", unsafe_allow_html=True)
+    st.caption("<h1 style=\"color:'coral'\"> Classifier metrics <h1>", unsafe_allow_html=True)
+    st.caption("Metrics on positive labels")
+    st.subheader("Train")
+    # if current_metrics:
+    #    display_metric_line(metrics['classifier']['train']['1'], current_metrics['classifier']['train']['1'])
+    # else:
+    # display_metric_line(metrics['train']['1'])
+    for label in st.session_state['labels']:
+        if label in metrics:
+            st.subheader(label)
+            if 'current_metrics' in st.session_state['alearn_loop'] and label in st.session_state['alearn_loop']['current_metrics']:
+                display_metric_line(metrics[label],
+                                    st.session_state['alearn_loop']['current_metrics'][label])
+            else:
+                display_metric_line(metrics[label])
+
+    if 'current_metrics' not in st.session_state['alearn_loop']:
+        st.session_state['alearn_loop']['current_metrics'] = None
+    st.session_state['alearn_loop']['current_metrics'] = metrics
+
+
 def nlp_binary():
 
     if check_column_types() != ['TEXT']:
+
         st.error(f"Column types are {check_column_types()} but {['TEXT']} was expected")
 
     check_alearn_loop()
@@ -158,16 +331,34 @@ def nlp_binary():
 
         create_seeds()
 
+        st.info('Create initial seeds')
+
     if st.session_state['alearn_loop']['step'] == 1:
 
         annotate_seeds()
 
-        st.info('Training initial learner')
+        st.info('Annotate seeds')
 
     if st.session_state['alearn_loop']['step'] == 2:
-        st.info('Annotate samples')
+
+        create_initial_learner()
+
+        st.info('Train initial learner')
 
     if st.session_state['alearn_loop']['step'] == 3:
+
+        display_learner_metrics()
+
+        st.info('Metrics')
+
+    if st.session_state['alearn_loop']['step'] == 4:
+
+        # st.dataframe(pd.DataFrame(st.session_state['annotator']['annotations'].items(), columns=['ix', 'label']))
+
+        st.info('More annotations samples')
+
+    if st.session_state['alearn_loop']['step'] == 5:
+
         st.info('Re-train and test')
 
     # st.json(st.session_state)
