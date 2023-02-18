@@ -373,6 +373,7 @@ def retrain_model():
     next_alearn_step()
     print('retrained', st.session_state['alearn_loop']['step'])
 
+
 def nlp_binary():
 
     if check_column_types() != ['TEXT']:
