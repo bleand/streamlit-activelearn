@@ -127,6 +127,35 @@ def annotate_seeds():
         annotate(st.session_state['df'], st.session_state['alearn_loop']['seed_annotation']['idxs'])
 
 
+def annotate_new_samples():
+
+    if 'learner' not in st.session_state['alearn_loop']:
+        st.error('Learner hasn\'t been trained yet')
+    else:
+        if 'sample_annotator' not in st.session_state['alearn_loop']:
+            st.session_state['alearn_loop']['sample_annotator'] = {}
+        if 'annotator' not in st.session_state:
+
+            my_bar = st.progress((0 / 2), text="Creating pool features")
+
+            pool_features, st.session_state['vectorizer'] = get_features(st.session_state['df'],
+                                                                        labels=False,
+                                                                        vectorizer=st.session_state['vectorizer'])
+
+            my_bar.progress((1 / 2), text="Querying learner")
+
+            st.session_state['alearn_loop']['sample_annotator']['idxs'], _ = st.session_state['alearn_loop'][
+                'learner'].query(pool_features)
+
+            my_bar.progress((2 / 2), text="Start annotating")
+
+            annotate(st.session_state['df'], st.session_state['alearn_loop']['sample_annotator']['idxs'])
+
+        else:
+
+            annotate(st.session_state['df'], st.session_state['alearn_loop']['sample_annotator']['idxs'])
+
+
 def assign_annotation(ix, label):
 
     if 'annotations' not in st.session_state['annotator']:
@@ -172,7 +201,7 @@ def split_annotations(test_size=0.2):
 
         st.session_state['alearn_loop']['data_test'].reset_index(inplace=True, drop=True)
 
-        st.session_state['annotator']['annotations'] = {}
+        del st.session_state['annotator']
 
 
 def annotate(df, ixs):
@@ -198,7 +227,14 @@ def annotate(df, ixs):
         my_bar = st.progress((st.session_state['annotator']['pos'] / len(ixs)))
 
         data_col = [col for col, status in st.session_state['col_status'].items() if status][0]
-        st.markdown(df.iloc[ixs[st.session_state['annotator']['pos']]][data_col])
+        sample = df.iloc[[ixs[st.session_state['annotator']['pos']]]][[data_col]]
+        st.markdown(sample[data_col].iloc[0])
+
+        if 'learner' in st.session_state['alearn_loop']:
+            sample_pred = st.session_state['alearn_loop']['learner'].estimator.predict(get_features(sample,
+                                                                           vectorizer=st.session_state['vectorizer'])[0]
+                                                              )
+            st.info(f'Learner predicted this as {sample_pred}')
 
         cols = st.columns(tuple(1 for _ in st.session_state['labels']))
         for ix, col in enumerate(cols):
@@ -318,6 +354,24 @@ def display_learner_metrics():
         st.session_state['alearn_loop']['current_metrics'] = None
     st.session_state['alearn_loop']['current_metrics'] = metrics
 
+    st.button('Annotate more samples', on_click=next_alearn_step)  # , args=(st,))
+
+
+def retrain_model():
+
+    my_bar = st.progress((0 / 2), text="Creating features")
+    train_features, labels, st.session_state['vectorizer'] = get_features(
+        st.session_state['alearn_loop']['data_train'],
+        labels=True,
+        vectorizer=st.session_state['vectorizer'])
+
+    my_bar.progress((1 / 2), text="Retraining learner")
+    st.session_state['alearn_loop']['learner'].fit(train_features, labels)
+
+    my_bar.progress((2 / 2), text="Done")
+    print('retraining', st.session_state['alearn_loop']['step'])
+    next_alearn_step()
+    print('retrained', st.session_state['alearn_loop']['step'])
 
 def nlp_binary():
 
@@ -353,11 +407,13 @@ def nlp_binary():
 
     if st.session_state['alearn_loop']['step'] == 4:
 
-        # st.dataframe(pd.DataFrame(st.session_state['annotator']['annotations'].items(), columns=['ix', 'label']))
+        annotate_new_samples()
 
         st.info('More annotations samples')
 
     if st.session_state['alearn_loop']['step'] == 5:
+
+        retrain_model()
 
         st.info('Re-train and test')
 

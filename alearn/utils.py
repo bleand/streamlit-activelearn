@@ -17,6 +17,9 @@ def check_alearn_loop():
 
 def next_alearn_step():
     st.session_state['alearn_loop']['step'] += 1
+    if st.session_state['alearn_loop']['step'] >= 6:
+        st.session_state['alearn_loop']['step'] = 3
+        st.experimental_rerun()
 
 
 def format_metrics(report):
