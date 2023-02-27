@@ -1,0 +1,9 @@
+COL_OPTIONS:
+    - TEXT
+    - NUM
+    - CAT
+MODEL_TYPES:
+    - 'Binary'
+    - 'Multiclass'
+    - 'Multilabel'
+    - 'NER'
