@@ -1,11 +1,15 @@
 import streamlit as st
 import pandas as pd
 from alearn.setup_functions import setup_labels
+from alearn.utils import load_yaml
+
+# Streamlit settings
 st.set_page_config(layout="centered")
 
-
-COL_OPTIONS = ['TEXT', 'NUM', 'CAT']
-MODEL_TYPES = ['Binary', 'Multiclass', 'Multilabel', 'NER']
+# Load configs
+st.session_state['cfg'] = load_yaml('config.yaml')
+COL_OPTIONS = st.session_state['cfg']['COL_OPTIONS']
+MODEL_TYPES = st.session_state['cfg']['MODEL_TYPES']
 
 
 def load_dataset():
@@ -29,16 +33,26 @@ def change_selected_type(col):
 def set_model_type():
     st.session_state['model_type'] = st.session_state['selected_model_type']
 
+
+# """
+# PAGE STARTS
+# """
+
 st.title("Active Learn")
 
+if 'df' not in st.session_state:
 
-st.file_uploader("Upload a csv file", key='dataset', on_change=load_dataset)
+    st.file_uploader("Upload a csv file", key='dataset', on_change=load_dataset)
 
-if 'df' in st.session_state:
+else:
+
     st.markdown("""---""")
     if len(st.session_state['df'].columns) > 10:
         st.error('Too many columns in dataset')
     else:
+        # """
+        # Defining dataset columns
+        # """
         st.header('Define columns')
         col1, col2, col3 = st.columns((8, 2, 2))
         with col1:
@@ -60,6 +74,10 @@ if 'df' in st.session_state:
                     st.button('ENABLE', key=f"enable_{str(col)}", on_click=toggle, args=(col,), type='primary')
                 else:
                     st.button('ENABLE', key=f"enable_{str(col)}", on_click=toggle, args=(col,))
+
+    # """
+    # Selecting model type
+    # """
     st.markdown("""---""")
     if len([1 for c in st.session_state['col_status'] if st.session_state['col_status'][c]]) == 0:
         st.error('Must enable at least one column')

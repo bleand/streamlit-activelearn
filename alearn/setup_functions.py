@@ -6,6 +6,7 @@ def add_label():
         st.session_state['labels'].append(st.session_state['new_label'])
     st.session_state['new_label'] = ''
 
+
 def delete_label(label):
     st.session_state['labels'].remove(label)
 
@@ -14,7 +15,11 @@ def setup_labels():
 
     if 'labels' not in st.session_state:
         st.session_state['labels'] = []
+
     st.markdown("""---""")
+    # """
+    # Create training labels section
+    # """
     st.title("Create training labels")
     col1, col2 = st.columns((8, 2))
     with col1:
@@ -34,6 +39,10 @@ def setup_labels():
         st.text_input('', label_visibility='collapsed', key='new_label', on_change=add_label)
     with col2:
         st.button('Add', on_click=add_label)
+
+    # """
+    # Validate labels
+    # """
 
     if st.session_state['model_type'] == 'Binary' and len(st.session_state['labels']) != 2:
         st.warning('Binary requires 2 labels')
