@@ -220,22 +220,22 @@ class NLPController(AlearnController):
     
     def display_learner_metrics(self):
 
-        eval_features, eval_labels= self.get_features(self.alearn_loop['data_test'], labels=True)
-
-        metrics = self.evaluate_model(eval_features, eval_labels)
-
-        print(metrics)
-
         st.caption("<hr>", unsafe_allow_html=True)
         st.caption("<h1 style=\"color:'coral'\"> Classifier metrics <h1>", unsafe_allow_html=True)
         st.caption("Metrics on positive labels")
         st.subheader("Train")
+
+        if self.step_entry:
+            eval_features, eval_labels = self.get_features(self.alearn_loop['data_test'], labels=True)
+            metrics = self.evaluate_model(eval_features, eval_labels)
+        else:
+            metrics = self.alearn_loop['current_metrics']
         
         for label in self.labels:
             if label in metrics:
                 st.subheader(label)
                 if 'current_metrics' in self.alearn_loop and label in \
-                        self.alearn_loop['current_metrics']:
+                        self.alearn_loop['current_metrics'] and self.step_entry:
                     display_metric_line(metrics[label],
                                         self.alearn_loop['current_metrics'][label])
                 else:
@@ -246,6 +246,8 @@ class NLPController(AlearnController):
         self.alearn_loop['current_metrics'] = metrics
 
         st.button('Annotate more samples', on_click=self.next_alearn_step)
+
+        super(NLPController, self).display_learner_metrics()
 
     def annotate_new_samples(self):
 

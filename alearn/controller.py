@@ -1,13 +1,16 @@
 import streamlit as st
-# from .utils import check_column_types, check_alearn_loop, next_alearn_step, evaluate_model
 from modAL.models import ActiveLearner
 from sklearn.ensemble import RandomForestClassifier
+from pathlib import Path
+import os, datetime
+import pickle
 
 
 class AlearnController:
 
     def __init__(self, session):
         self.alearn_loop = None
+        self.step_entry = True
         self.annotator = None
         self.mtype = session['model_type']
         self.dtype = 'TEXT'
@@ -27,6 +30,7 @@ class AlearnController:
 
     def next_alearn_step(self):
         self.alearn_loop['step'] += 1
+        self.step_entry = True
         if self.alearn_loop['step'] >= 6:
             self.alearn_loop['step'] = 3
             st.experimental_rerun()
@@ -76,6 +80,24 @@ class AlearnController:
 
         self.next_alearn_step()
 
+    def export_model(self):
+        export_folder = './exports'
+        export_path = os.path.join(export_folder, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+        Path(export_path).mkdir(parents=True, exist_ok=True)
+
+        model_name = os.path.join(export_path, 'model.pkl')
+        pickle.dump(self.alearn_loop['learner'].estimator, open(model_name, 'wb'))
+
+        vectorizer_name = os.path.join(export_path, 'vectorizer.pkl')
+        pickle.dump(self.vectorizer, open(vectorizer_name, 'wb'))
+
+        data_train_name = os.path.join(export_path, 'data_train.csv')
+        self.alearn_loop['data_train'].to_csv(data_train_name)
+
+        data_test_name = os.path.join(export_path, 'data_test.csv')
+        self.alearn_loop['data_test'].to_csv(data_test_name)
+
+
     def split_annotations(self):
         raise NotImplementedError
 
@@ -98,7 +120,7 @@ class AlearnController:
     #     raise NotImplementedError
 
     def display_learner_metrics(self):
-        raise NotImplementedError
+        st.button('Export model', on_click=self.export_model)
 
     def annotate_new_samples(self):
         raise NotImplementedError
@@ -135,7 +157,7 @@ class AlearnController:
 
         if self.alearn_loop['step'] == 3:
             self.display_learner_metrics()
-
+            self.step_entry = False
             st.info('Metrics')
 
         if self.alearn_loop['step'] == 4:
