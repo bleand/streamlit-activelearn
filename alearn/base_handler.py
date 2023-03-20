@@ -9,3 +9,6 @@ class BaseHandler:
 
     def add_seed(self):
         raise NotImplementedError
+
+    def seed_exists(self):
+        raise NotImplementedError

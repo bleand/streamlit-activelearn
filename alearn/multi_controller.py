@@ -32,9 +32,15 @@ class MultiController(AlearnController):
             }
 
     def add_seed(self):
-        for handler in self.handlers:
-            handler.add_seed()
-        self.seeds += 1
+        # Check if seed exists in every handler
+        seed_status = [handler.seed_exists() for handler in self.handlers]
+
+        if False in seed_status:
+            for handler in self.handlers:
+                handler.add_seed()
+            self.seeds += 1
+        else:
+            st.error("You've entered a seed that already exists. Please add verify.")
 
     def create_seeds(self):
         if not self.seeds:

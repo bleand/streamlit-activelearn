@@ -16,6 +16,9 @@ class TextHandler(BaseHandler):
             st.text_input(label='', label_visibility='collapsed', key=f'{self.col_name}_new_seed')
 
     def add_seed(self):
-        if st.session_state[f'{self.col_name}_new_seed'] not in self.seeds:
-            self.seeds.append(st.session_state[f'{self.col_name}_new_seed'])
-            st.session_state[f'{self.col_name}_new_seed'] = ''
+        # if st.session_state[f'{self.col_name}_new_seed'] not in self.seeds:
+        self.seeds.append(st.session_state[f'{self.col_name}_new_seed'])
+        st.session_state[f'{self.col_name}_new_seed'] = ''
+
+    def seed_exists(self):
+        return st.session_state[f'{self.col_name}_new_seed'] in self.seeds
