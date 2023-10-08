@@ -80,8 +80,8 @@ class AlearnController:
 
         self.next_alearn_step()
 
-    def export_model(self):
-        export_folder = './exports'
+    def export_model(self, export_folder='./exports'):
+
         export_path = os.path.join(export_folder, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
         Path(export_path).mkdir(parents=True, exist_ok=True)
 
@@ -136,6 +136,11 @@ class AlearnController:
         raise NotImplementedError
 
     def _run(self):
+        """
+            Handles the active learn loop
+        :return:
+        :rtype:
+        """
         # st.info(self.labels)
         
         self.check_alearn_loop()
