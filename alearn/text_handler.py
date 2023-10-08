@@ -20,9 +20,6 @@ class TextHandler(BaseHandler):
         self.seeds.append(st.session_state[f'{self.col_name}_new_seed'])
         st.session_state[f'{self.col_name}_new_seed'] = ''
 
-    def delete_seed(self, seed_ix):
-        del self.seeds[seed_ix]
-
     def seed_exists(self):
         return st.session_state[f'{self.col_name}_new_seed'] in self.seeds
 

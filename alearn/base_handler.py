@@ -14,6 +14,9 @@ class BaseHandler:
     def add_seed(self):
         raise NotImplementedError
 
+    def delete_seed(self, seed_ix):
+        del self.seeds[seed_ix]
+
     def seed_exists(self):
         raise NotImplementedError
 
