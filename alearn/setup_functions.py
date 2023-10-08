@@ -13,8 +13,14 @@ def delete_label(label):
 
 def setup_labels():
 
+    BINARY_LABELS = st.session_state['cfg']['BINARY_LABELS']
+
     if 'labels' not in st.session_state:
         st.session_state['labels'] = []
+
+    if len(st.session_state['labels']) == 0 and st.session_state['model_type'] == 'Binary':
+        for label in BINARY_LABELS:
+            st.session_state['labels'].append(label)
 
     st.markdown("""---""")
     # """
