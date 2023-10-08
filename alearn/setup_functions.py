@@ -36,9 +36,7 @@ def setup_labels():
 
     col1, col2 = st.columns((8, 2))
     with col1:
-        st.text_input('', label_visibility='collapsed', key='new_label', on_change=add_label)
-    with col2:
-        st.button('Add', on_click=add_label)
+        st.text_input('a', label_visibility='collapsed', key='new_label', on_change=add_label)
 
     # """
     # Validate labels

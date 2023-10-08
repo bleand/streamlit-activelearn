@@ -13,7 +13,7 @@ class TextHandler(BaseHandler):
         with col1:
             st.text(self.col_name)
         with col2:
-            st.text_input(label='', label_visibility='collapsed', key=f'{self.col_name}_new_seed')
+            st.text_input(label='a', label_visibility='collapsed', key=f'{self.col_name}_new_seed')
 
     def add_seed(self):
         # if st.session_state[f'{self.col_name}_new_seed'] not in self.seeds:

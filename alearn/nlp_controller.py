@@ -56,7 +56,7 @@ class NLPController(AlearnController):
 
         col1, col2 = st.columns((8, 2))
         with col1:
-            st.text_input(label='', label_visibility='collapsed', key='new_seed')
+            st.text_input(label='a', label_visibility='collapsed', key='new_seed')
         with col2:
             st.selectbox(label='', options=self.labels, key=f"new_seed_label",
                          label_visibility='collapsed')

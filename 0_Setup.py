@@ -67,7 +67,7 @@ else:
                 col_formatted = f'<p style="font-size: 24px;">{col}</p>'
                 st.markdown(col_formatted, unsafe_allow_html=True)
             with col2:
-                st.selectbox('', COL_OPTIONS, key=f"selected_type_{str(col)}",
+                st.selectbox('a', COL_OPTIONS, key=f"selected_type_{str(col)}",
                              label_visibility='collapsed', on_change=change_selected_type, args=(col,), index=0)
             with col3:
                 if st.session_state['col_status'][col]:
