@@ -23,3 +23,7 @@ This repo contains a basic suite to apply active learning to your data.
 - [ ] Add type details to functions
 - [ ] Additional settings to config file (Vector size, handler settings, models)
 - [ ] Separate streamlit and alearn functions
+- [ ] Add image support
+- [ ] Update readme
+- [ ] Create post
+- [ ] Add sound support
